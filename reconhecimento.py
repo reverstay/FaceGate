@@ -32,7 +32,7 @@ while True:
     # Converter o frame para RGB
     rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-    # Detectar rostos no frame
+    # Detectar rosqtos no frame
     face_locations = face_recognition.face_locations(rgb_frame)
 
     # Verificar se foram encontradas faces
