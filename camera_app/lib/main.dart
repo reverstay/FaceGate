@@ -1,172 +1,145 @@
-import 'package:flutter/material.dart';
-import 'package:camera/camera.dart';
-import 'package:web_socket_channel/web_socket_channel.dart';
+import 'dart:io';
 import 'dart:typed_data';
+import 'package:camera/camera.dart';
+import 'package:flutter/material.dart';
+import 'package:udp/udp.dart';
 import 'package:image/image.dart' as img;
-
-List<CameraDescription> cameras = [];
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  cameras = await availableCameras();
-  runApp(CameraApp());
+  final cameras = await availableCameras();
+  runApp(MyApp(camera: cameras.isNotEmpty ? cameras.first : null));
 }
 
-class CameraApp extends StatelessWidget {
+class MyApp extends StatelessWidget {
+  final CameraDescription? camera;
+
+  MyApp({this.camera});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      home: CameraHome(),
+      home: camera != null ? CameraStream(camera: camera!) : NoCameraScreen(),
     );
   }
 }
 
-class CameraHome extends StatefulWidget {
+class CameraStream extends StatefulWidget {
+  final CameraDescription camera;
+
+  CameraStream({required this.camera});
+
   @override
-  _CameraHomeState createState() => _CameraHomeState();
+  _CameraStreamState createState() => _CameraStreamState();
 }
 
-class _CameraHomeState extends State<CameraHome> {
-  CameraController? controller;
-  WebSocketChannel? channel;
+class _CameraStreamState extends State<CameraStream> {
+  late CameraController _controller;
+  UDP? _udpSocket;
   bool _isStreaming = false;
-  Uint8List? processedFrame;
+  final int _fps = 10; // Define a taxa de quadros para 10 FPS
+  DateTime _lastSentTime = DateTime.now();
 
   @override
   void initState() {
     super.initState();
     _initializeCamera();
-    _connectToWebSocket();
   }
 
-  @override
-  void dispose() {
-    controller?.dispose();
-    channel?.sink.close();
-    super.dispose();
-  }
-
-  void _initializeCamera() {
-    // Obtém a câmera frontal
-    CameraDescription? frontCamera = cameras.firstWhere(
-          (camera) => camera.lensDirection == CameraLensDirection.front,
-      orElse: () => cameras[0], // Usa a primeira câmera disponível se não houver câmera frontal
-    );
-
-    // Inicializa a câmera frontal
-    controller = CameraController(
-      frontCamera,
-      ResolutionPreset.medium,
-      enableAudio: false,
-    );
-
-    controller?.initialize().then((_) {
-      if (!mounted) return;
-      setState(() {});
-      _startVideoStream();
-    }).catchError((e) {
-      print('Erro ao inicializar a câmera: $e');
-    });
-  }
-
-  void _connectToWebSocket() {
+  void _initializeCamera() async {
     try {
-      // Inicializa o WebSocket
-      print('Tentando conectar ao servidor WebSocket...');
-      channel = WebSocketChannel.connect(
-        Uri.parse('ws://192.168.18.39:8765'), // IP do servidor WebSocket
-      );
-
-      // Conexão estabelecida
-      print('Conectado ao servidor WebSocket.');
-
-      // Recebe os frames processados do servidor
-      channel?.stream.listen(
-            (data) {
-          setState(() {
-            processedFrame = data;
-          });
-          print('Frame processado recebido do servidor.');
-        },
-        onError: (error) {
-          print('Erro na conexão WebSocket: $error');
-          _reconnectToWebSocket();
-        },
-        onDone: () {
-          print('Conexão WebSocket encerrada.');
-          _reconnectToWebSocket();
-        },
-      );
+      _controller = CameraController(widget.camera, ResolutionPreset.low);
+      await _controller.initialize();
+      setState(() {}); // Atualiza a interface quando a câmera é inicializada
+      _initializeUdpSocket();
     } catch (e) {
-      print('Falha ao conectar ao WebSocket: $e');
-      _reconnectToWebSocket();
+      print("Erro ao inicializar a câmera: $e");
     }
   }
 
-  void _reconnectToWebSocket() {
-    // Tenta reconectar após um pequeno atraso
-    Future.delayed(Duration(seconds: 5), () {
-      print('Tentando reconectar ao servidor WebSocket...');
-      _connectToWebSocket();
-    });
-  }
-
-  void _startVideoStream() {
-    controller?.startImageStream((CameraImage image) {
-      if (!_isStreaming) {
-        _isStreaming = true;
-        _sendFrameToServer(image);
-      }
-    });
-  }
-
-  void _sendFrameToServer(CameraImage image) async {
+  void _initializeUdpSocket() async {
     try {
-      final int width = image.width;
-      final int height = image.height;
-      final img.Image convertedImage = img.Image(width, height);
+      // Inicializa o socket UDP
+      _udpSocket = await UDP.bind(Endpoint.any(port: Port(0)));
+      if (_udpSocket == null) {
+        print("Falha ao inicializar o socket UDP.");
+        return;
+      }
+      print("Socket UDP inicializado.");
+      _startStreaming();
+    } catch (e) {
+      print("Erro ao inicializar o socket UDP: $e");
+    }
+  }
 
-      for (int i = 0; i < height; i++) {
-        for (int j = 0; j < width; j++) {
-          final int pixelIndex = i * width + j;
-          final int pixelValue = image.planes[0].bytes[pixelIndex];
-          convertedImage.setPixel(j, i, img.getColor(pixelValue, pixelValue, pixelValue));
+  void _startStreaming() {
+    _controller.startImageStream((CameraImage image) async {
+      if (_udpSocket != null && !_isStreaming) {
+        // Limita a taxa de quadros para evitar sobrecarga
+        final now = DateTime.now();
+        if (now.difference(_lastSentTime).inMilliseconds < (1000 / _fps)) return;
+
+        _isStreaming = true;
+        try {
+          // Converte o frame para JPG
+          Uint8List bytes = _convertToJpg(image);
+
+          // Envia dados via UDP
+          await _udpSocket?.send(
+            bytes,
+            Endpoint.unicast(InternetAddress('192.168.1.100'), port: Port(8765)),
+          );
+          print("Dados JPG enviados via UDP.");
+          _lastSentTime = now; // Atualiza o tempo do último envio
+        } catch (e) {
+          print("Erro ao enviar dados via UDP: $e");
+          _initializeUdpSocket(); // Reinicializa o socket em caso de erro
+        } finally {
+          _isStreaming = false;
         }
       }
+    });
+  }
 
-      // Converte a imagem para JPEG
-      final Uint8List jpegBytes = Uint8List.fromList(img.encodeJpg(convertedImage));
+  Uint8List _convertToJpg(CameraImage image) {
+    // Converte o frame para um formato de imagem utilizável
+    img.Image convertedImage = img.Image.fromBytes(
+      image.width,
+      image.height,
+      image.planes[0].bytes,
+      format: img.Format.luminance, // Ajuste para monocromático
+    );
 
-      // Envia o frame para o servidor
-      print('Enviando frame para o servidor...');
-      channel?.sink.add(jpegBytes);
+    // Codifica a imagem para JPG
+    List<int> jpgData = img.encodeJpg(convertedImage);
 
-      // Aguarda um curto intervalo para evitar sobrecarga
-      await Future.delayed(Duration(milliseconds: 16));
-    } catch (e) {
-      print('Erro ao enviar o frame: $e');
-    } finally {
-      _isStreaming = false;
-    }
+    return Uint8List.fromList(jpgData);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Detecção de Rosto em Tempo Real')),
-      body: Center(
-        child: AspectRatio(
-          aspectRatio: 3 / 4, // Ajusta a proporção para 3:4
-          child: processedFrame != null
-              ? Image.memory(
-            processedFrame!,
-            fit: BoxFit.cover, // Ajuste para preencher a área
-          )
-              : controller!.value.isInitialized
-              ? CameraPreview(controller!)
-              : CircularProgressIndicator(),
-        ),
-      ),
+      appBar: AppBar(title: Text('Streaming de Vídeo')),
+      body: _controller.value.isInitialized
+          ? CameraPreview(_controller)
+          : Center(child: Text("Inicializando câmera...")),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _udpSocket?.close();
+    super.dispose();
+  }
+}
+
+class NoCameraScreen extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('Câmera não encontrada')),
+      body: Center(child: Text("Nenhuma câmera foi encontrada no dispositivo.")),
     );
   }
 }

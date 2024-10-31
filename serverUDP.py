@@ -1,43 +1,39 @@
+from flask import Flask, Response, render_template
 import socket
 import cv2
 import numpy as np
-from flask import Flask, render_template, Response
-from threading import Thread
 
 app = Flask(__name__)
-last_frame = None  # Armazena o último frame recebido
 
 # Configuração do servidor UDP
-UDP_IP = "0.0.0.0"
+UDP_IP = '0.0.0.0'
 UDP_PORT = 8765
-BUFFER_SIZE = 65507
+sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+sock.bind((UDP_IP, UDP_PORT))
 
-def udp_receiver():
-    global last_frame
-
-    # Cria o socket UDP
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.bind((UDP_IP, UDP_PORT))
-    print(f"Servidor UDP rodando na porta {UDP_PORT}")
-
+def udp_video_stream():
     while True:
         try:
-            # Recebe dados do cliente
-            data, addr = sock.recvfrom(BUFFER_SIZE)
-            print(f"Dados recebidos de {addr}, tamanho: {len(data)} bytes")
+            # Recebe os dados do frame via UDP
+            data, _ = sock.recvfrom(65536)
 
-            # Converte bytes para um array numpy
-            np_arr = np.frombuffer(data, np.uint8)
+            if not data:
+                continue
 
-            # Converte o array para uma imagem OpenCV
-            frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+            # Tenta decodificar o frame recebido como JPG
+            frame = cv2.imdecode(np.frombuffer(data, dtype=np.uint8), cv2.IMREAD_COLOR)
 
             if frame is not None:
-                last_frame = frame  # Atualiza o último frame recebido
+                # Codifica o frame para enviar para o navegador
+                _, buffer = cv2.imencode('.jpg', frame)
+                frame = buffer.tobytes()
+                yield (b'--frame\r\n'
+                       b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
             else:
-                print("Frame recebido é inválido ou está vazio.")
+                print("Falha ao decodificar o frame.")
         except Exception as e:
-            print(f"Erro ao processar frame: {e}")
+            print(f"Erro ao receber ou processar dados UDP: {e}")
 
 @app.route('/')
 def index():
@@ -45,24 +41,8 @@ def index():
 
 @app.route('/video_feed')
 def video_feed():
-    def generate_frames():
-        global last_frame
-        while True:
-            if last_frame is not None:
-                # Codifica o frame em JPEG
-                _, buffer = cv2.imencode('.jpg', last_frame)
-                frame_bytes = buffer.tobytes()
+    return Response(udp_video_stream(),
+                    mimetype='multipart/x-mixed-replace; boundary=frame')
 
-                # Envia o frame para o navegador
-                yield (b'--frame\r\n'
-                       b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
-
-    return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
-
-if __name__ == "__main__":
-    # Inicia o servidor UDP em uma thread separada
-    udp_thread = Thread(target=udp_receiver, daemon=True)
-    udp_thread.start()
-
-    # Inicia o servidor Flask
-    app.run(host='0.0.0.0', port=5000, debug=False)
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=True)  # Servidor Flask na porta 5000
