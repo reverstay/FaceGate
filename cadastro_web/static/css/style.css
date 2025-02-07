@@ -1,0 +1,59 @@
+/* Reset básico e fontes */
+body {
+  background-color: #f1f1f1; /* fundo cinza muito claro */
+  color: #343a40; /* texto em cinza escuro */
+  font-family: Arial, sans-serif;
+}
+
+/* Navbar com cor azul e texto branco */
+.navbar {
+  background-color: #007bff !important; /* azul */
+}
+.navbar-brand,
+.nav-link {
+  color: #ffffff !important;
+}
+
+/* Botões primários */
+.btn-primary {
+  background-color: #007bff;
+  border-color: #007bff;
+}
+.btn-primary:hover {
+  background-color: #0056b3;
+  border-color: #0056b3;
+}
+
+/* Tabelas com cabeçalho cinza */
+.table {
+  background-color: #ffffff;
+}
+.table thead {
+  background-color: #6c757d; /* cinza */
+  color: #ffffff;
+}
+
+/* Alerts customizados */
+.alert {
+  border-left: 5px solid #007bff;
+}
+
+/* Links e detalhes */
+a {
+  color: #007bff;
+}
+a:hover {
+  color: #0056b3;
+}
+
+/* Personalização de formulários */
+.form-control {
+  border: 1px solid #ced4da;
+}
+
+/* Ajustes responsivos adicionais */
+@media (max-width: 576px) {
+  .container {
+      padding: 10px;
+  }
+}

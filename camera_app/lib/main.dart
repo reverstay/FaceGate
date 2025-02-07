@@ -1,25 +1,33 @@
 import 'dart:io';
 import 'dart:typed_data';
-import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:camera/camera.dart';
 import 'package:udp/udp.dart';
 import 'package:image/image.dart' as img;
+import 'package:http/http.dart' as http;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final cameras = await availableCameras();
-  runApp(MyApp(camera: cameras.isNotEmpty ? cameras.first : null));
+
+  // Encontra a câmera frontal (se disponível)
+  final frontCamera = cameras.firstWhere(
+        (camera) => camera.lensDirection == CameraLensDirection.front,
+    orElse: () => cameras.first, // Se não encontrar, usa a primeira disponível
+  );
+
+  runApp(MyApp(camera: frontCamera));
 }
 
 class MyApp extends StatelessWidget {
-  final CameraDescription? camera;
+  final CameraDescription camera;
 
-  MyApp({this.camera});
+  MyApp({required this.camera});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      home: camera != null ? CameraStream(camera: camera!) : NoCameraScreen(),
+      home: CameraStream(camera: camera),
     );
   }
 }
@@ -37,8 +45,6 @@ class _CameraStreamState extends State<CameraStream> {
   late CameraController _controller;
   UDP? _udpSocket;
   bool _isStreaming = false;
-  final int _fps = 10; // Define a taxa de quadros para 10 FPS
-  DateTime _lastSentTime = DateTime.now();
 
   @override
   void initState() {
@@ -75,10 +81,6 @@ class _CameraStreamState extends State<CameraStream> {
   void _startStreaming() {
     _controller.startImageStream((CameraImage image) async {
       if (_udpSocket != null && !_isStreaming) {
-        // Limita a taxa de quadros para evitar sobrecarga
-        final now = DateTime.now();
-        if (now.difference(_lastSentTime).inMilliseconds < (1000 / _fps)) return;
-
         _isStreaming = true;
         try {
           // Converte o frame para JPG
@@ -87,16 +89,17 @@ class _CameraStreamState extends State<CameraStream> {
           // Envia dados via UDP
           await _udpSocket?.send(
             bytes,
-            Endpoint.unicast(InternetAddress('192.168.1.100'), port: Port(8765)),
+            Endpoint.unicast(InternetAddress('192.168.163.84'), port: Port(8765)),
           );
           print("Dados JPG enviados via UDP.");
-          _lastSentTime = now; // Atualiza o tempo do último envio
         } catch (e) {
           print("Erro ao enviar dados via UDP: $e");
           _initializeUdpSocket(); // Reinicializa o socket em caso de erro
         } finally {
           _isStreaming = false;
         }
+      } else if (_udpSocket == null) {
+        print("Socket UDP não está inicializado.");
       }
     });
   }
@@ -116,6 +119,23 @@ class _CameraStreamState extends State<CameraStream> {
     return Uint8List.fromList(jpgData);
   }
 
+  Future<void> _fetchProcessedImage() async {
+    try {
+      // Realiza a requisição GET para o servidor Flask
+      final response = await http.get(Uri.parse('http://192.168.163.84:5000/video_feed'));
+
+      if (response.statusCode == 200) {
+        setState(() {
+          // A imagem processada pode ser carregada aqui para exibição
+        });
+      } else {
+        print("Erro ao buscar imagem processada: ${response.statusCode}");
+      }
+    } catch (e) {
+      print("Erro ao buscar imagem processada: $e");
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -131,15 +151,5 @@ class _CameraStreamState extends State<CameraStream> {
     _controller.dispose();
     _udpSocket?.close();
     super.dispose();
-  }
-}
-
-class NoCameraScreen extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text('Câmera não encontrada')),
-      body: Center(child: Text("Nenhuma câmera foi encontrada no dispositivo.")),
-    );
   }
 }

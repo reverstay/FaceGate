@@ -12,9 +12,7 @@ model_yolo = YOLO('yolov8n.pt')  # Use 'yolov8_face.pt' se disponível
 
 # Definir o modelo de embeddings faciais usando o InceptionResNetV2
 def carregar_modelo_facial():
-    # Carregar o InceptionResNetV2 pré-treinado
     base_model = InceptionResNetV2(weights='imagenet', include_top=False, input_shape=(160, 160, 3))
-    # Adicionar uma camada de pooling global para gerar embeddings
     x = GlobalAveragePooling2D()(base_model.output)
     modelo_facial = Model(inputs=base_model.input, outputs=x)
     print("Modelo de reconhecimento facial baseado no InceptionResNetV2 carregado com sucesso!")
@@ -36,7 +34,6 @@ def get_embedding(face_pixels):
 # Função para codificar múltiplas faces dos usuários registrados
 def codificar_usuarios(pasta_usuarios="usuarios"):
     usuarios_codificados = {}
-    nomes_usuarios = []
 
     for arquivo in os.listdir(pasta_usuarios):
         if arquivo.endswith(".jpg") or arquivo.endswith(".png"):
@@ -56,11 +53,26 @@ def codificar_usuarios(pasta_usuarios="usuarios"):
 usuarios_codificados = codificar_usuarios()
 
 # Função para comparar embeddings usando similaridade do cosseno
-def comparar_embeddings(face_embedding, embeddings_usuario, threshold=0.92):
-    # Calcular a similaridade do cosseno entre o embedding da face detectada e os embeddings do usuário
+def comparar_embeddings(face_embedding, embeddings_usuario, threshold=0.80):
     similaridades = [cosine_similarity([face_embedding], [user_embedding])[0][0] for user_embedding in embeddings_usuario]
     melhor_similaridade = max(similaridades)
     return melhor_similaridade >= threshold, melhor_similaridade
+
+# Função para atualizar embeddings incrementais para cada usuário
+def atualizar_embeddings_usuario(nome_usuario, novo_embedding, threshold=0.85, max_embeddings=10):
+    if nome_usuario in usuarios_codificados:
+        # Verificar se o novo embedding é suficientemente diferente dos existentes
+        similaridades = [cosine_similarity([novo_embedding], [embedding])[0][0] for embedding in usuarios_codificados[nome_usuario]]
+        if all(sim < threshold for sim in similaridades):
+            # Manter apenas os embeddings mais representativos até o limite `max_embeddings`
+            if len(usuarios_codificados[nome_usuario]) >= max_embeddings:
+                usuarios_codificados[nome_usuario].pop(0)  # Remove o embedding mais antigo
+            usuarios_codificados[nome_usuario].append(novo_embedding)
+            print(f"Novo embedding adicionado para {nome_usuario}. Total de embeddings: {len(usuarios_codificados[nome_usuario])}")
+    else:
+        # Inicializar o usuário com o primeiro embedding se ele ainda não existir
+        usuarios_codificados[nome_usuario] = [novo_embedding]
+        print(f"Usuário {nome_usuario} inicializado com o primeiro embedding.")
 
 # Inicializar a captura de vídeo
 cap = cv2.VideoCapture(0)
@@ -89,7 +101,6 @@ while True:
 
         # Comparar o embedding com os usuários registrados
         for nome, embeddings_usuario in usuarios_codificados.items():
-            # Reduza o threshold para um valor mais baixo, como 0.80, e observe o desempenho.
             corresponde, similaridade = comparar_embeddings(face_embedding, embeddings_usuario, threshold=0.80)
 
             print(f"Similaridade com {nome}: {similaridade}")
@@ -97,7 +108,7 @@ while True:
                 reconhecido = True
                 melhor_nome = nome
                 melhor_similaridade = similaridade
-
+                atualizar_embeddings_usuario(nome, face_embedding)  # Atualizar embeddings
 
         # Exibir o resultado com base na similaridade
         if reconhecido:
@@ -117,4 +128,3 @@ while True:
 # Libera a captura de vídeo e fecha todas as janelas
 cap.release()
 cv2.destroyAllWindows()
-q

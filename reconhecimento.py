@@ -47,7 +47,7 @@ while True:
             cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 255), 2)  # Quadrado vermelho
 
             # Comparar o rosto capturado com usuários conhecidos
-            resultados = face_recognition.compare_faces(codigos_usuarios, face_encoding, tolerance=0.25)
+            resultados = face_recognition.compare_faces(codigos_usuarios, face_encoding, tolerance=0.6)
             distancias = face_recognition.face_distance(codigos_usuarios, face_encoding)
 
             # Verificar se o rosto é de um usuário registrado

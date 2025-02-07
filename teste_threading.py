@@ -10,7 +10,7 @@ frame_atual = None
 fps = 0
 processando = False
 face_atual = None  # Localização do rosto detectado atualmente
-nome_atual = ""    # Nome do usuário identificado
+nome_atual = ""    # Nome do usuário identificadoq
 
 # Intervalo de tempo para executar o reconhecimento (em segundos)
 intervalo_reconhecimento = 1  # 500 ms

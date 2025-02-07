@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<h2>Dashboard</h2>
+<p>Bem-vindo, {{ current_user.username }}!</p>
+{% if usuarios %}
+  <div class="table-responsive">
+    <table class="table table-bordered table-hover">
+      <thead class="table-light">
+        <tr>
+          <th>ID</th>
+          <th>Nome</th>
+          <th>Sobrenome</th>
+          <th>Número da Casa</th>
+          <th>Número do Documento</th>
+          <th>Foto</th>
+          <th>Ações</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for usuario in usuarios %}
+          <tr>
+            <td>{{ usuario.id }}</td>
+            <td>{{ usuario.nome }}</td>
+            <td>{{ usuario.sobrenome }}</td>
+            <td>{{ usuario.numero_casa }}</td>
+            <td>{{ usuario.numero_documento }}</td>
+            <td>
+              {% if usuario.foto %}
+                <img src="{{ url_for('uploaded_file', filename=usuario.foto) }}" alt="Foto" class="img-thumbnail" style="max-width: 100px;">
+              {% else %}
+                Sem foto
+              {% endif %}
+            </td>
+            <td>
+              <a href="{{ url_for('edit_usuario', usuario_id=usuario.id) }}" class="btn btn-sm btn-warning">Editar</a>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <p>Nenhum usuário cadastrado.</p>
+{% endif %}
+{% endblock %}
