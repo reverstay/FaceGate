@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Dashboard Admin{% endblock %}
+{% block content %}
+<h2>Dashboard Admin</h2>
+
+<div class="mb-3">
+  <a href="{{ url_for('add_organization') }}" class="btn btn-success me-2">Adicionar Organização</a>
+  <a href="{{ url_for('add_director') }}" class="btn btn-success">Adicionar Diretor</a>
+</div>
+
+<h3>Organizações</h3>
+{% if organizations %}
+  <table class="table table-bordered">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Nome</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for org in organizations %}
+      <tr>
+        <td>{{ org.id }}</td>
+        <td>{{ org.name }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  <p>Nenhuma organização cadastrada.</p>
+{% endif %}
+
+<h3>Diretores</h3>
+{% if directors %}
+  <table class="table table-bordered">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Usuário</th>
+        <th>Organização</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for director in directors %}
+      <tr>
+        <td>{{ director.id }}</td>
+        <td>{{ director.username }}</td>
+        <td>{{ director.organization_name }}</td>  <!-- Certifique-se de usar organization_name -->
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  <p>Nenhum diretor cadastrado.</p>
+{% endif %}
+
+{% endblock %}

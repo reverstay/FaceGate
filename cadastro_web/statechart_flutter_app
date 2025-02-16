@@ -1,0 +1,50 @@
+// Statechart do App Flutter
+digraph Statechart_Flutter_App {
+	dpi=100 fontname=Arial nodesep=0.6 rankdir=TB ranksep=0.6 size=A4 splines=ortho
+	Inicializa -> DisplayLogin [label=Inicializa fontsize=10 minlen=0.2]
+	subgraph cluster_login {
+		color=lightyellow fontsize=14 label=Login style="rounded,filled"
+		DisplayLogin [label="Exibe 
+Formularios de login" fontsize=10 shape=box]
+		SignIn [label="Usuário clica 
+'Acessar'" fontsize=10 shape=box]
+		Auth [label="Chama AuthService.loginUser" fontsize=10 shape=box]
+		LoginSuccess [label="Login bem-sucedido" fontsize=10 shape=box]
+		LoginFail [label="Falha no Login
+Exibe AlertDialog" fontsize=10 shape=box]
+		DisplayLogin -> SignIn [label="Interação" fontsize=8]
+		SignIn -> Auth [label="Validação" fontsize=8]
+		Auth -> LoginSuccess [label="Válido" color=green fontsize=8]
+		Auth -> LoginFail [label="Inválido" color=red fontsize=8]
+	}
+	subgraph "cluster_Pagina Inicial" {
+		color=lightgreen fontsize=14 label="Pagina Inicial" style="rounded,filled"
+		"DisplayPagina Inicial" [label="Exibe Pagina Inicial
+(seleção de dispositivo)" fontsize=10 shape=box]
+		SelectDevice [label="Seleciona dispositivo
+(entrada/saída)" fontsize=10 shape=box]
+		AtualizarDevice [label="Chama atualizarDevice()" fontsize=10 shape=box]
+		StartRecognition [label="Navega para FaceDetectorView" fontsize=10 shape=box]
+		"DisplayPagina Inicial" -> SelectDevice [label="Interação" fontsize=8]
+		SelectDevice -> AtualizarDevice [label=Atualiza fontsize=8]
+		AtualizarDevice -> StartRecognition [label=Reconhecimento fontsize=8]
+	}
+	LoginSuccess -> "DisplayPagina Inicial" [label="Avança" constraint=false fontsize=10 minlen=0.2]
+	subgraph cluster_faceDetector {
+		color=lightblue fontsize=14 label=FaceDetectorView style="rounded,filled"
+		InitCamera [label="Inicializa câmera" fontsize=10 shape=box]
+		DisplayFeed [label="Exibe feed" fontsize=10 shape=box]
+		DetectFace [label="Detecta face
+(Google MLKit)" fontsize=10 shape=box]
+		CapturePhoto [label="Captura foto" fontsize=10 shape=box]
+		UploadPhoto [label="Envia foto
+(Supabase Storage)" fontsize=10 shape=box]
+		ShowResult [label="Exibe resultado" fontsize=10 shape=box]
+		InitCamera -> DisplayFeed [label="Feed ativo" fontsize=8]
+		DisplayFeed -> DetectFace [label="Processa frame" fontsize=8]
+		DetectFace -> CapturePhoto [label="Face detectada" color=green fontsize=8]
+		CapturePhoto -> UploadPhoto [label="Foto salva" fontsize=8]
+		UploadPhoto -> ShowResult [label="Mostra resultado" fontsize=8]
+	}
+	StartRecognition -> InitCamera [label="Inicia reconhecimento" constraint=false fontsize=10 minlen=0.2]
+}

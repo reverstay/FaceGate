@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Dashboard Recepcionista{% endblock %}
+{% block content %}
+<h2>Dashboard Recepcionista</h2>
+
+<div class="mb-3">
+  <a href="{{ url_for('add_usuario') }}" class="btn btn-success">Adicionar Usuário</a>
+</div>
+
+{% if usuarios %}
+  <table class="table table-bordered">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Nome</th>
+        <th>Documento</th>
+        <th>Foto</th>
+        <th>Ações</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for user in usuarios %}
+      <tr>
+        <td>{{ user.id }}</td>
+        <td>{{ user.nome }}</td>
+        <td>{{ user.documento }}</td>
+        <td>
+          {% if user.foto %}
+            <img src="{{ url_for('usuario_file', filename=user.foto) }}" alt="Foto" class="img-thumbnail" style="max-width:100px;">
+          {% else %}
+            Sem foto
+          {% endif %}
+        </td>
+        <td>
+          <a href="{{ url_for('edit_usuario', usuario_id=user.id) }}" class="btn btn-warning btn-sm">Editar</a>
+          <a href="{{ url_for('delete_usuario', usuario_id=user.id) }}" class="btn btn-danger btn-sm" onclick="return confirm('Deseja realmente excluir?')">Excluir</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  <p>Nenhum usuário cadastrado.</p>
+{% endif %}
+{% endblock %}

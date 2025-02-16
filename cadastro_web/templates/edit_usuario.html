@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 {% block title %}Editar Usuário{% endblock %}
 {% block content %}
 <h2>Editar Usuário</h2>
@@ -8,28 +8,17 @@
     <input type="text" name="nome" id="nome" class="form-control" value="{{ usuario.nome }}" required>
   </div>
   <div class="mb-3">
-    <label for="sobrenome" class="form-label">Sobrenome</label>
-    <input type="text" name="sobrenome" id="sobrenome" class="form-control" value="{{ usuario.sobrenome }}" required>
+    <label for="documento" class="form-label">Documento</label>
+    <input type="text" name="documento" id="documento" class="form-control" value="{{ usuario.documento }}" required>
   </div>
-  <div class="mb-3">
-    <label for="numero_casa" class="form-label">Número da Casa</label>
-    <input type="text" name="numero_casa" id="numero_casa" class="form-control" value="{{ usuario.numero_casa }}" required>
-  </div>
-  <div class="mb-3">
-    <label for="numero_documento" class="form-label">Número do Documento</label>
-    <input type="text" name="numero_documento" id="numero_documento" class="form-control" value="{{ usuario.numero_documento }}" required>
-  </div>
-  
   {% if usuario.foto %}
-    <div class="mb-3">
-      <label class="form-label">Foto Atual</label>
-      <div>
-        <img src="{{ url_for('uploaded_file', filename=usuario.foto) }}" alt="Foto Atual" class="img-thumbnail" style="max-width: 200px;">
-      </div>
+  <div class="mb-3">
+    <label class="form-label">Foto Atual</label>
+    <div>
+      <img src="{{ url_for('usuario_file', filename=usuario.foto) }}" alt="Foto" class="img-thumbnail" style="max-width:100px;">
     </div>
+  </div>
   {% endif %}
-  
-  <!-- Área para capturar nova foto, se desejar atualizar -->
   <div class="mb-3">
     <label class="form-label">Atualizar Foto (opcional)</label>
     <div id="camera" class="mb-2"></div>
@@ -38,29 +27,27 @@
     <input type="hidden" name="foto_data" id="foto_data">
     <div id="preview" class="mt-2"></div>
   </div>
-  
   <button type="submit" class="btn btn-primary">Atualizar Usuário</button>
 </form>
 
 <script>
-  if(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-    var video = document.createElement('video');
-    video.setAttribute('autoplay', '');
-    video.setAttribute('playsinline', '');
-    document.getElementById('camera').appendChild(video);
-    navigator.mediaDevices.getUserMedia({ video: true }).then(function(stream) {
-      video.srcObject = stream;
-    });
-    
-    document.getElementById('captureBtn').addEventListener('click', function() {
-      var canvas = document.getElementById('canvas');
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      canvas.getContext('2d').drawImage(video, 0, 0);
-      var dataURL = canvas.toDataURL('image/png');
-      document.getElementById('foto_data').value = dataURL;
-      document.getElementById('preview').innerHTML = '<img src="'+dataURL+'" class="img-thumbnail" style="max-width:200px;">';
-    });
-  }
+if(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+  var video = document.createElement('video');
+  video.setAttribute('autoplay', '');
+  video.setAttribute('playsinline', '');
+  document.getElementById('camera').appendChild(video);
+  navigator.mediaDevices.getUserMedia({ video: true }).then(function(stream) {
+    video.srcObject = stream;
+  });
+  document.getElementById('captureBtn').addEventListener('click', function() {
+    var canvas = document.getElementById('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+    var dataURL = canvas.toDataURL('image/png');
+    document.getElementById('foto_data').value = dataURL;
+    document.getElementById('preview').innerHTML = '<img src="'+dataURL+'" class="img-thumbnail" style="max-width:200px;">';
+  });
+}
 </script>
 {% endblock %}

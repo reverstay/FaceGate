@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Adicionar Organização{% endblock %}
+{% block content %}
+<h2>Adicionar Organização</h2>
+<form method="POST">
+  <div class="mb-3">
+    <label for="name" class="form-label">Nome da Organização</label>
+    <input type="text" name="name" id="name" class="form-control" required>
+  </div>
+  <button type="submit" class="btn btn-primary">Salvar Organização</button>
+</form>
+{% endblock %}

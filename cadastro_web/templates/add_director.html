@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Adicionar Diretor{% endblock %}
+{% block content %}
+<h2>Adicionar Diretor</h2>
+<form method="POST">
+  <div class="mb-3">
+    <label for="username" class="form-label">Usuário</label>
+    <input type="text" name="username" id="username" class="form-control" required>
+  </div>
+  <div class="mb-3">
+    <label for="password" class="form-label">Senha</label>
+    <input type="password" name="password" id="password" class="form-control" required>
+  </div>
+  <div class="mb-3">
+    <label for="organization_id" class="form-label">Organização</label>
+    <select name="organization_id" id="organization_id" class="form-select" required>
+      <option value="">Selecione a Organização</option>
+      {% for org in organizations %}
+      <option value="{{ org.id }}">{{ org.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <button type="submit" class="btn btn-primary">Salvar Diretor</button>
+</form>
+{% endblock %}
